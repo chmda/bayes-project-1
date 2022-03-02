@@ -8,3 +8,5 @@ This project is conducted as part of the Bayesian Statistics and Hierarchical Mo
 - Armand ROUYRRE
 - Aymard SAHNOUNE
 - Vincent SEVESTRE
+
+
