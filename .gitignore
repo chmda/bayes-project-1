@@ -28,3 +28,7 @@ Thumbs.db
 *.blg
 *.log
 *.out
+
+# R session data and history files
+.Rhistory
+.RData
