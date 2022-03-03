@@ -1,3 +1,10 @@
 {
-    "autoDocstring.docstringFormat": "sphinx"
-}
+    "python.linting.mypyEnabled": true,
+    "python.linting.enabled": true,
+    "python.formatting.provider": "black",
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "autoDocstring.docstringFormat": "sphinx",
+    "autoDocstring.quoteStyle": "\"\"\""
+  }
+  

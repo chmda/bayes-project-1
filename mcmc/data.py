@@ -25,7 +25,7 @@ class Data:
         :return: Instance of :py:class:`Data`
         """
 
-        tmp: Dict[str, Any]  = json.loads(data)
+        tmp: Dict[str, Any] = json.loads(data)
 
         # cast List to ndarray
         for k, v in tmp.items():
