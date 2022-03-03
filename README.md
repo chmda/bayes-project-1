@@ -22,7 +22,7 @@ If the file ``data/data.json`` does not exist you need to run ``data/to_json.sh`
   
   If you use poetry, it's easy:
   ```sh
-  poetry install
+  poetry install --no-dev
   poetry shell
   ```
 
