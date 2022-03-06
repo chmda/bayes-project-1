@@ -22,19 +22,46 @@
     \maketitle
 
  \section{Introduction}
-    Le but de ce projet est de classer la performance de certaines écoles Londoniennes. Pour cela on dispose d'un jeu de données comprenant les notes de 1978 élèves (une note par élève) dans 38 écoles différentes. On considère que la note de l'élève dépend des autres données que nous disposons, qui sont : 
+ Le but de ce projet est de classer la performance de certaines écoles Londoniennes.
+ 
+  \subsection{Jeu de données}
+    On dispose d'un jeu de données comprenant les notes de 1978 élèves (une note par élève) dans 38 écoles différentes. On considère que la note de l'élève dépend des autres données que nous disposons, qui sont : 
     \begin{itemize}
         \item Une note de lecture de l'élève (LRT : London Reading Test).
         \item Une note de raisonnement de l'élève (VR : Verbal Reasoning).
         \item La catégorie de l'élève (catégorie allant de 1 à 3, déterminée par ses notes aux tests).
-        \item Le genre de l'école (Ecole pour fille, pour garçon, ou mixte).
+                \item Le genre de l'école (Ecole pour fille, pour garçon, ou mixte).
         \item Le type du bâtiment de l'école (Eglise, Romaine, autre).
-        
-        
-
-        
     \end{itemize}
-    %\input{sections/introduction}
+    
+    
+  \subsection{Modèle mathématique}
+    On utilise un modèle hierarchique. Notons $Y_{ij}$ la note du l'élève $i$ dans l'école $j$.
+    Dans notre modèle. $Y_{ij} \sim \mathcal{N}( \mu_{ij}, \tau_{ij})$. 
+    \begin{itemize}
+        \item Le logarithme de $\tau_{ij}$ est modélisé comme suivant une fonction linéaire de la note du test LRT. On note $log (\tau_{ij}) = \theta + \phi LRT_{ij}$
+        \item $\mu_{ij}$ est défini comme égale à 
+        
+        $\alpha_{1j} 
+        + \alpha_{2j}* LRT_{ij} 
+        + \alpha_{3j}* VR_{1ij} 
+        + \beta_{1}* LRT_{2ij} 
+        + \beta_{2}* VR_{2ij} 
+        + \beta_{3}* Girl_{ij} 
+        + \beta_{4}* GirlSchool_{j} 
+        + \beta_{5}* BoySchool_{j} 
+        + \beta_{6}* CESchool_{j} 
+        + \beta_{7}* RCSchool_{j} 
+        + \beta_{8}* OtherSchool_{j}$
+    \end{itemize}
+    
+    Les distributions à priori sont les suivantes : 
+    \begin{itemize}
+        \item Les variables aléatoires $\beta_k$ où $k \in [1,8]$, ainsi que $\theta$ et $\phi$ suivent des lois normales centrées et indépendantes, de précision 0.0001.
+        \item Le vecteur aléatoire $(\alpha_{kj})_k$ pour $k \in [1,3]$, suit une loi normal multivariée $\alpha_{*j} \sim \mathcal{N}( \gamma, \sigma)$. Où $\gamma$ suit une loi normal multivariée non informative, et où l'inverse de  $\sigma$ suit une distribution de Wishart.
+    \end{itemize}
+    
+    
 
     % bib
     % bib
