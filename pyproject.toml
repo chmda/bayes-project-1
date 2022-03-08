@@ -5,8 +5,9 @@ description = ""
 authors = ["Charles MIRANDA", "Armand ROUYRRE", "Aymard SAHNOUNE", "Vincent SEVESTRE"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = ">=3.8,<3.11"
 numpy = "matplotlib"
+scipy = "^1.8.0"
 
 [tool.poetry.dev-dependencies]
 mypy = "^0.931"
