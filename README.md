@@ -8,6 +8,9 @@ This project is conducted as part of the Bayesian Statistics and Hierarchical Mo
 
 The R version of this project can be found in the directory ``R version``.
 
+Dependencies : 
+  - ``matlib`` package
+
 ### Python
 
 If the file ``data/data.json`` does not exist you need to run ``data/to_json.sh`` to convert the R data to a JSON file so that Python can access it easily.
