@@ -1,27 +1,28 @@
 source("R version/__init__.R")
 
 library(mvtnorm)
+library(matlib)
 
 mu_tau <- function(i,param){
-  mu <- param[1] * data$LRT[i]^2 + param[2]*data$VR[i][2] + param[3] * data$Gender[i]
-         + param[4] * data$School_gender[i][1] + param[5] * data$School_gender[i][2] 
-         + param[6] * data$School_denom[i][1] + param[7] * data$School_denom[i][2]
-         + param[8] * data$School_denom[i][3]
-         + param[9] + param[10] * data$LRT[i] + param[11] * data$VR[i][1]
+  mu <- param$beta[1] * data$LRT[i]^2 + param$beta[2]*data$VR[i][2] + param$beta[3] * data$Gender[i]
+  + param$beta[4] * data$School_gender[i][1] + param$beta[5] * data$School_gender[i][2] 
+  + param$beta[6] * data$School_denom[i][1] + param$beta[7] * data$School_denom[i][2]
+  + param$beta[8] * data$School_denom[i][3]
+  + param$alpha[,1] + param$alpha[,2] * data$LRT[i] + param$alpha[,3] * data$VR[i][1]
   
-  tau <- exp(param[12] + param[13] * data$LRT[i])
+  tau <- exp(param$theta + param$phi * data$LRT[i])
   
   return (c(mu,tau))
 }
 
 mu_tau_j <- function(j,param){
-  mu <- param[1] * data$LRT[data$school== j]^2 + param[2]*data$VR[data$school== j][2] + param[3] * data$Gender[data$school== j]
-  + param[4] * data$School_gender[data$school== j][1] + param[5] * data$School_gender[data$school== j][2] 
-  + param[6] * data$School_denom[data$school== j][1] + param[7] * data$School_denom[data$school== j][2]
-  + param[8] * data$School_denom[data$school== j][3]
-  + param[9] + param[10] * data$LRT[data$school== j] + param[11] * data$VR[data$school== j][1]
+  mu <- param$beta[1] * data$LRT[data$school== j]^2 + param$beta[2]*data$VR[data$school== j][2] + param$beta[3] * data$Gender[data$school== j]
+  + param$beta[4] * data$School_gender[data$school== j][1] + param$beta[5] * data$School_gender[data$school== j][2] 
+  + param$beta[6] * data$School_denom[data$school== j][1] + param$beta[7] * data$School_denom[data$school== j][2]
+  + param$beta[8] * data$School_denom[data$school== j][3]
+  + param$alpha[,1] + param$alpha[,2] * data$LRT[data$school== j] + param$alpha[,3] * data$VR[data$school== j][1]
   
-  tau <- exp(param[12] + param[13] * data$LRT[data$school== j])
+  tau <- exp(param$theta + param$phi * data$LRT[data$school== j])
   
   return (c(mu,tau))
 }
@@ -90,11 +91,11 @@ sample_beta <- function(k,X){
     mu <- L[1]
     tau_i[i] <- L[2]
     nu_ki <- nu_k[i]
-    a_i[i] <- data$Y[i] - mu + nu_ki*X[k]
+    a_i[i] <- data$Y[i] - mu + nu_ki*X$beta[k]
   }
   va <- 1/(tau + sum(nu_k*tau_i))
   mu_2 <- va*(sum(nu_k*tau_i - a_i)) 
-  X[k] <- rnorm(mu_2,sqrt(va))
+  X$beta[k] <- rnorm(mu_2,sqrt(va))
   return (X)
 }
 
@@ -102,7 +103,7 @@ sample_beta <- function(k,X){
 sample_alpha <-function(X){ # Marche aléatoire 
   alpha <- matrix(NA,M,3)
   for (j in 1:M){
-    prop <- X[9:11][,j] + rnorm(3, 0, sd=prop_sd)
+    prop <- X$alpha[,j] + rnorm(3, 0, sd=prop_sd)
     mat_T <- rWishart(1,3,Sigma)
     gamma <- rmvnorm(1, mn, prec)
     A_2 <- data$LRT[data$school == j]
@@ -120,22 +121,22 @@ sample_alpha <-function(X){ # Marche aléatoire
     }
     
     top <- log_pdf(prop)
-    bottom <- log_pdf(X[9:11][,j])
+    bottom <- log_pdf(X$alpha[,j])
     acc <- exp(top - bottom)
     
     if (runif() < acc) {
       alpha[j] <- prop 
     }
     else {
-      alpha[j] <- X[9:11][,j]
+      alpha[j] <- X$alpha[,j]
     }
   }
-  X[9:11] <- t(alpha)
+  X$alpha <- t(alpha)
   return (X)
 }
 
 sample_theta <- function(X){
-  prop <- X[12] + rnorm(1, 0, sd=prop_sd)
+  prop <- X$theta + rnorm(1, 0, sd=prop_sd)
   tau_i <- 1:N
   mu_i <- 1:N
   for (i in 1:N){
@@ -149,18 +150,18 @@ sample_theta <- function(X){
   }
   
   top <- log_pdf(prop)
-  bottom <- log_pdf(X[12])
+  bottom <- log_pdf(X$theta)
   acc <- exp(top - bottom)
   
   if (runif() < acc) {
-    X[12] <- prop 
+    X$theta <- prop 
   }
   
   return (X)
 }
 
 sample_phi <- function(X){
-  prop <- X[13] + rnorm(1, 0, sd=prop_sd)
+  prop <- X$phi + rnorm(1, 0, sd=prop_sd)
   tau_i <- 1:N
   mu_i <- 1:N
   for (i in 1:N){
@@ -174,18 +175,18 @@ sample_phi <- function(X){
   }
   
   top <- log_pdf(prop)
-  bottom <- log_pdf(X[13])
+  bottom <- log_pdf(X$phi)
   acc <- exp(top - bottom)
   
   if (runif() < acc) {
-    X[13] <- prop 
+    X$phi <- prop 
   }
   
   return (X)
 }
 
 MH_Gibbs <- function(n,init){
-  X <- 1:n
+  X <- matrix(NA,n,13)
   X[1] <- init
   for (i in 1:n){
     for (k in 1:8){
@@ -197,3 +198,4 @@ MH_Gibbs <- function(n,init){
   }
   return (X)
 }
+
