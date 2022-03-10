@@ -31,7 +31,7 @@ def multivariate_normal_p(mean, precision, size=None):
     x = np.random.standard_normal(final_shape).reshape(-1, mean.shape[0])
     U = cholesky(precision, lower=False)
 
-    x = np.linalg.solve(U, x)
+    x = np.linalg.solve(U, x.T).T
     x += mean
     x.shape = tuple(final_shape)
     return x

@@ -1,194 +1,169 @@
-from typing import Any, Dict, Optional, Union
+import functools
 import numpy as np
-from mcmc.data import Data
+import scipy.stats as sp
+from mcmc.data import Coefficients, CoefficientsChain, Data
+from mcmc.utils import multivariate_normal_p
+from typing import Any, Callable, Dict, Optional, Union
 
 
-def _compute_mu_ij(
-    alpha: np.ndarray,
-    beta: np.ndarray,
-    LRT: np.ndarray,
-    VR1: np.ndarray,
-    VR2: np.ndarray,
-    Girl: np.ndarray,
-    GirlsSchool: np.ndarray,
-    BoysSchool: np.ndarray,
-    CESchool: np.ndarray,
-    RCSchool: np.ndarray,
-    OtherSchool: np.ndarray,
-) -> np.ndarray:
-    mu_ij = np.zeros_like(LRT)
-    for i in range(mu_ij.shape[0]):
-        mu_ij[i] = (
-            alpha[0]
-            + alpha[1] * LRT[i]
-            + alpha[2] * VR1[i]
-            + beta[0] * LRT[i] ** 2
-            + beta[1] * VR2[i]
-            + beta[2] * Girl[i]
-            + beta[3] * GirlsSchool
-            + beta[4] * BoysSchool
-            + beta[5] * CESchool
-            + beta[6] * RCSchool
-            + beta[7] * OtherSchool
+def _compute_mu_ij(chain: CoefficientsChain, data: Data, k: int) -> np.ndarray:
+    mu = np.zeros(data.N)  # size N
+
+    for j in range(data.M):
+        idx = data.school == j  # pupils belong to school j
+        mu[idx] = (
+            chain.alpha[k, j, 0]
+            + chain.alpha[k, j, 1] * data.LRT[idx]
+            + chain.alpha[k, j, 2] * data.VR[idx, 0]
+            + chain.beta[k, 0] * data.LRT[idx] ** 2
+            + chain.beta[k, 1] * data.VR[idx, 1]
+            + chain.beta[k, 2] * data.Gender[idx]
+            + chain.beta[k, 3] * data.School_gender[idx, 0]
+            + chain.beta[k, 4] * data.School_gender[idx, 1]
+            + chain.beta[k, 5] * data.School_denom[idx, 0]
+            + chain.beta[k, 6] * data.School_denom[idx, 1]
+            + chain.beta[k, 7] * data.School_denom[idx, 2]
         )
 
-    return mu_ij
+    return mu
 
 
-def _compute_tau_ij(theta: float, phi: float, LRT: np.ndarray) -> np.ndarray:
-    return np.exp(theta + phi * LRT)
+def _compute_tau_ij(chain: CoefficientsChain, data: Data, k: int) -> np.ndarray:
+    return np.exp(chain.theta[k] + chain.phi[k] * data.LRT)
+
+
+def _sample_alpha(
+    chain: CoefficientsChain, data: Data, k: int, prop_sd: float = 1.0
+) -> None:
+    tau_ij = _compute_tau_ij(chain, data, k)
+
+    for j in range(data.M):
+        prop = chain.alpha[k, j] + np.random.normal(loc=0, scale=prop_sd, size=3)
+        idx = data.school == j
+
+        # compute delta = mu - alpha coefficients
+        delta = (
+            chain.beta[k, 0] * data.LRT[idx] ** 2
+            + chain.beta[k, 1] * data.VR[idx, 1]
+            + chain.beta[k, 2] * data.Gender[idx]
+            + chain.beta[k, 3] * data.School_gender[idx, 0]
+            + chain.beta[k, 4] * data.School_gender[idx, 1]
+            + chain.beta[k, 5] * data.School_denom[idx, 0]
+            + chain.beta[k, 6] * data.School_denom[idx, 1]
+            + chain.beta[k, 7] * data.School_denom[idx, 2]
+        )
+
+        def log_pdf(alpha: np.ndarray):
+            p1 = (alpha - chain.gamma[k]).T @ (chain.T[k] @ (alpha - chain.gamma[k]))
+            p2 = np.sum(
+                (
+                    alpha[0]
+                    + alpha[1] * data.LRT[idx]
+                    + alpha[2] * data.VR[idx, 0]
+                    - (data.Y[idx] - delta)
+                )
+                ** 2
+                / tau_ij[idx]
+            )
+            return -(p1 + p2) / 2
+
+        top = log_pdf(prop)
+        bottom = log_pdf(chain.alpha[k, j])
+        acc = np.exp(top - bottom)
+
+        if np.random.uniform() < acc:
+            chain.alpha[k, j] = prop
+        # else no change as we have already copied the previous coefficients into the current state
 
 
 def _sample_beta(
-    init: np.ndarray,
-    Y: np.ndarray,
-    x: Data,
-    alpha: np.ndarray,
-    theta: float,
-    phi: float,
+    chain: CoefficientsChain,
+    data: Data,
+    k: int,
     tau: float = 1e-4,
-) -> np.ndarray:
+) -> None:
     # use Gibbs sampler since we now the conditional distribution
 
-    beta = init[:]  # make a copy of init
-    mu_ij = np.zeros_like(Y)
-    tau_ij = np.zeros_like(Y)
+    mu_ij = None
+    tau_ij = None
 
     def nu(k: int) -> np.ndarray:
         # get nu
         table: Dict[int, np.ndarray] = {
-            0: x.LRT,
-            1: x["VR2"],
-            2: x["Girl"],
-            3: x["GirlsSchool"],
-            4: x["BoysSchool"],
-            5: x["CESchool"],
-            6: x["RCSchool"],
-            7: x["OtherSchool"],
+            0: data.LRT**2,
+            1: data.VR[:, 1],
+            2: data.Gender,
+            3: data.School_gender[:, 0],
+            4: data.School_gender[:, 1],
+            5: data.School_denom[:, 0],
+            6: data.School_denom[:, 1],
+            7: data.School_denom[:, 2],
         }
         return table[k]
 
-    for k in range(8):
+    for l in range(8):
         # compute mu_ij and tau_ij
-        mu_ij = _compute_mu_ij(
-            alpha,
-            beta,
-            x.LRT,
-            x["VR1"],
-            x["VR2"],
-            x["Girl"],
-            x["GirlsSchool"],
-            x["BoysSchool"],
-            x["CESchool"],
-            x["RCSchool"],
-            x["OtherSchool"],
-        )
-        tau_ij = _compute_tau_ij(theta, phi, x.LRT)
+        mu_ij = _compute_mu_ij(chain, data, k)
+        tau_ij = _compute_tau_ij(chain, data, k)
 
-        # draw beta_k
-        nu_ij = nu(k)
-        delta_ij = mu_ij - beta[k] * nu_ij
-        zeta_ij = Y - delta_ij
+        # draw beta_l
+        nu_ij = nu(l)
+        delta_ij = mu_ij - chain.beta[k, l] * nu_ij
+        zeta_ij = data.Y - delta_ij
 
         ## compute sigma
         sigma2 = 1.0 / (tau + np.sum(nu_ij**2 * tau_ij))
         ## compute mu
         mu = np.sum(nu_ij * zeta_ij * tau_ij) * sigma2
 
-        beta[k] = np.random.normal(loc=mu, scale=sigma2, size=1)
-
-    return beta
-
-
-def _sample_phi(
-    phi: float,
-    Y: np.ndarray,
-    x: Data,
-    alpha: np.ndarray,
-    beta: np.ndarray,
-    theta: float,
-    tau: float = 1e-4,
-    prop_sd: float = 1.0,
-) -> float:
-    prop = phi + np.random.normal(scale=prop_sd)  # make a proposition
-    # compute mu_ij and tau_ij
-    mu_ij = _compute_mu_ij(
-        alpha,
-        beta,
-        x.LRT,
-        x["VR1"],
-        x["VR2"],
-        x["Girl"],
-        x["GirlsSchool"],
-        x["BoysSchool"],
-        x["CESchool"],
-        x["RCSchool"],
-        x["OtherSchool"],
-    )
-
-    def log_pdf(ph: float) -> float:
-        # tau_ij is not the same
-        tau_ij = _compute_tau_ij(theta, ph, x.LRT)
-        return -(ph**2 * tau + np.sum(ph * x.LRT + (Y - mu_ij) ** 2 * tau_ij)) / 2
-
-    top = log_pdf(prop)
-    bottom = log_pdf(phi)
-    acc = np.exp(top - bottom)
-    if np.random.uniform() < acc:
-        return prop
-    else:
-        return phi
+        chain.beta[k, l] = np.random.normal(loc=mu, scale=np.sqrt(sigma2), size=1)
 
 
 def _sample_theta(
-    theta: float,
-    Y: np.ndarray,
-    x: Data,
-    alpha: np.ndarray,
-    beta: np.ndarray,
-    phi: float,
-    tau: float = 1e-4,
-    prop_sd: float = 1.0,
-) -> float:
-    prop = theta + np.random.normal(scale=prop_sd)  # make a proposition
-    # compute mu_ij and tau_ij
-    mu_ij = _compute_mu_ij(
-        alpha,
-        beta,
-        x.LRT,
-        x["VR1"],
-        x["VR2"],
-        x["Girl"],
-        x["GirlsSchool"],
-        x["BoysSchool"],
-        x["CESchool"],
-        x["RCSchool"],
-        x["OtherSchool"],
-    )
+    chain: CoefficientsChain, data: Data, k: int, tau: float = 1e-4
+) -> None:
+    sigma2 = 1.0 / (tau * (1 + np.sum(1.0 / (1 + data.LRT**2))))
+    mu = tau * np.sum((1.0 + chain.phi[k] * data.LRT) / (1.0 + data.LRT**2)) * sigma2
+    chain.theta[k] = np.random.normal(loc=mu, scale=np.sqrt(sigma2), size=1)
 
-    def log_pdf(th: float) -> float:
-        # tau_ij is not the same
-        tau_ij = _compute_tau_ij(th, phi, x.LRT)
-        return -(th**2 * tau + np.sum(th + (Y - mu_ij) ** 2 * tau_ij)) / 2
 
-    top = log_pdf(prop)
-    bottom = log_pdf(theta)
-    acc = np.exp(top - bottom)
-    if np.random.uniform() < acc:
-        return prop
-    else:
-        return theta
+def _sample_phi(
+    chain: CoefficientsChain, data: Data, k: int, tau: float = 1e-4
+) -> None:
+    sigma2 = 1.0 / (tau * (1 + np.sum(data.LRT**2 / (1 + data.LRT**2))))
+    mu = np.sum(data.LRT * (1 + chain.theta[k] * tau / (1 + data.LRT**2))) * sigma2
+    chain.phi[k] = np.random.normal(loc=mu, scale=np.sqrt(sigma2), size=1)
+
+
+def _sample_gamma(
+    chain: CoefficientsChain, data: Data, k: int, mu0: np.ndarray, T0: np.ndarray
+) -> None:
+    prec = T0 + data.M * chain.T[k]
+    mu = np.linalg.solve(
+        prec, T0.dot(mu0) + chain.T[k].dot(chain.alpha[k].sum(axis=0))
+    )  # equivalent to (prec^-1) @ (T0 @ mu0 + sum_j T @ alpha_j)
+    chain.gamma[k] = multivariate_normal_p(mu, prec)
+
+
+def _sample_T(chain: CoefficientsChain, data: Data, k: int) -> None:
+    prec = data.R[:]
+    for j in range(data.M):
+        # compute Gram's matrix and add it to prec
+        centered = chain.alpha[k, j] - chain.gamma[k]
+        prec += np.outer(centered, centered)
+
+    chain.T[k] = sp.wishart.rvs(3, np.linalg.inv(prec))  # TODO : avoid invert
 
 
 class MCMC:
     """MCMC sampler."""
 
-    def __init__(self, n: int = 10**5) -> None:
+    def __init__(self, init: Coefficients, n: int = 10**4) -> None:
         """Create a MCMC sampler.
 
-        :param n: Chain size, defaults to :math:`10^5`.
+        :param n: Chain length, defaults to :math:`10^4`.
         """
-        self._chain: Optional[np.ndarray] = None  # init it later
+        self._chain: CoefficientsChain = CoefficientsChain.from_init(init, n)
         self._n = n
 
     @property
@@ -200,17 +175,34 @@ class MCMC:
         return self._n
 
     def fit(
-        self, data: Union[Data, Dict[str, Any]], init: Optional[np.ndarray] = None
-    ) -> np.ndarray:
+        self,
+        data: Data,
+        prop_sd: float = 1,
+        tau: float = 1e-4,
+        mu0: np.ndarray = np.zeros((3,)),
+        T0: np.ndarray = np.eye(3),
+    ) -> None:
         """Estimate the parameters from the data.
 
-        :param data: Data.
-        :param init: Initial values of the parameters, defaults to None
-        :return: Markov chain.
+        :param data: Data
+        :param init: Initial values of the parameters
         """
-        raise NotImplementedError()
 
-    def predict(self, X: Dict[str, Any], burnin: int = 0) -> np.ndarray:
+        for i in range(self._n):
+            # copy from previous state
+            self._chain.copy_from_previous(i + 1)
+            # compute the coefficients
+            ## fixed effects
+            _sample_beta(self._chain, data, i + 1, tau)
+            _sample_theta(self._chain, data, i + 1, tau)
+            _sample_phi(self._chain, data, i + 1, tau)
+            ## random coefficients
+            _sample_alpha(self._chain, data, i + 1, prop_sd)
+            ## hyper priors
+            _sample_gamma(self._chain, data, i + 1, mu0, T0)
+            _sample_T(self._chain, data, i + 1)
+
+    def predict(self, X: Data, burnin: int = 0) -> np.ndarray:
         """Predict the data using estimated parameters.
 
         :param X: Data
@@ -219,7 +211,7 @@ class MCMC:
         """
         raise NotImplementedError()
 
-    def summary(self) -> Dict[str, Dict[str, float]]:
+    def summary(self, burnin: int = 0) -> Dict[str, Coefficients]:
         """Summarise the results.
 
         :return: Summary
@@ -231,7 +223,26 @@ class MCMC:
         ## q2.5pc -> 0.025 quantile
         ## median
         ## q97.5pc -> 0.975 quantile
-        raise NotImplementedError()
+        metrics: Dict[str, Callable] = {
+            "mean": functools.partial(np.median, axis=0),
+            "std": functools.partial(np.std, axis=0),
+            "q2.5pc": functools.partial(np.quantile, q=0.025, axis=0),
+            "median": functools.partial(np.median, axis=0),
+            "q97.5pc": functools.partial(np.quantile, q=0.975, axis=0),
+        }
+        results: Dict[str, Coefficients] = {}
+
+        for key, func in metrics.items():
+            results[key] = Coefficients(
+                alpha=func(self._chain.alpha[burnin:]),
+                beta=func(self._chain.beta[burnin:]),
+                theta=func(self._chain.theta[burnin:]),
+                phi=func(self._chain.phi[burnin:]),
+                gamma=func(self._chain.gamma[burnin:]),
+                T=func(self._chain.T[burnin:]),
+            )
+
+        return results
 
     def diagnose(self, outfile: Optional[str] = None) -> None:
         """Makes a diagnosis of the chain and display it. You can also save the plot to a file.
