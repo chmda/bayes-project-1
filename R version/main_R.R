@@ -23,11 +23,15 @@ mu_tau_j <- function(j,param){
   return (c(mu,tau))
 }
 
+# Hyper-paramètres 
 prop_sd <- 0.01
+
 Sigma <- inv(R) 
 tau <- 0.001
 mn = c(0,0,0)
 prec <- diag(3)*100
+
+#Initialisation
 
 init <- list(theta = 0, phi = 0.01, gamma = c(0,0,0), beta = c(0,0,0,0,0,0,0,0),
              T = structure(.Data = c(10, -3, -3,
@@ -73,7 +77,8 @@ init <- list(theta = 0, phi = 0.01, gamma = c(0,0,0), beta = c(0,0,0,0,0,0,0,0),
                                           0,0,0), .Dim = c(38, 3))
 ) 
 
-
+mu0 <- init$gamma 
+T0 <- init$T
 
 sample_beta <- function(k,X){
   nu_k <- switch(k, # Variable associée à beta_k
@@ -189,6 +194,24 @@ sample_phi <- function(X){
   return (X)
 }
 
+sample_gamma <- function(X){
+  var <- T0 + data$M*X$T
+  alpha_sum <- c(sum(X$alpha[,1]),sum(X$alpha[,2]),sum(X$alpha[,3]))
+  mu <- solve(a=var,b=(T0 %*% mu0 + X$T %*% alpha_sum ))
+  X$gamma <- rmvnorm(1,mu, var)
+  return(X)
+}
+
+sample_T <- function(X){
+  S <- matrix(0,3,3)
+  for (j in 1:data$M){
+    S <- S + ( t(X$alpha[j,] - X$gamma) %*% (X$alpha[j,] - X$gamma) )
+  }
+  R_new <- inv( inv(R) + S)
+  X$T <- rWishart(1,data$M + 3,R_new)
+  return(X)
+}
+
 MH_Gibbs <- function(n,init){
   X <- rep(list(init),n)
   for (i in 1:n){
@@ -198,6 +221,8 @@ MH_Gibbs <- function(n,init){
     X[[i]] <- sample_alpha(X[[i]])
     X[[i]] <- sample_theta(X[[i]])
     X[[i]] <- sample_phi(X[[i]])
+    X[[i]] <- sample_gamma(X[[i]])
+    X[[i]] <- sample_T(X[[i]])
   }
   return (X)
 }
