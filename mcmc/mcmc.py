@@ -1,6 +1,7 @@
 import functools
 import numpy as np
 import scipy.stats as sp
+from scipy.spatial.distance import mahalanobis
 from mcmc.data import Coefficients, CoefficientsChain, Data
 from mcmc.utils import multivariate_normal_p
 from typing import Any, Callable, Dict, Optional, Union
@@ -10,7 +11,7 @@ def _compute_mu_ij(chain: CoefficientsChain, data: Data, k: int) -> np.ndarray:
     mu = np.zeros(data.N)  # size N
 
     for j in range(data.M):
-        idx = data.school == j  # pupils belong to school j
+        idx = data.school == (j + 1)  # pupils belong to school j
         mu[idx] = (
             chain.alpha[k, j, 0]
             + chain.alpha[k, j, 1] * data.LRT[idx]
@@ -39,7 +40,7 @@ def _sample_alpha(
 
     for j in range(data.M):
         prop = chain.alpha[k, j] + np.random.normal(loc=0, scale=prop_sd, size=3)
-        idx = data.school == j
+        idx = data.school == (j + 1)
 
         # compute delta = mu - alpha coefficients
         delta = (
@@ -54,17 +55,10 @@ def _sample_alpha(
         )
 
         def log_pdf(alpha: np.ndarray):
-            p1 = (alpha - chain.gamma[k]).T @ (chain.T[k] @ (alpha - chain.gamma[k]))
-            p2 = np.sum(
-                (
-                    alpha[0]
-                    + alpha[1] * data.LRT[idx]
-                    + alpha[2] * data.VR[idx, 0]
-                    - (data.Y[idx] - delta)
-                )
-                ** 2
-                / tau_ij[idx]
-            )
+            # p1 = (alpha - chain.gamma[k]).T @ (chain.T[k] @ (alpha - chain.gamma[k]))
+            p1 = mahalanobis(alpha, chain.gamma[k], chain.T[k]) ** 2
+            tmp = alpha[0] + alpha[1] * data.LRT[idx] + alpha[2] * data.VR[idx, 0]
+            p2 = np.sum(tmp**2 - 2 * tmp * (data.Y[idx] - delta) * tau_ij[idx])
             return -(p1 + p2) / 2
 
         top = log_pdf(prop)
@@ -82,7 +76,7 @@ def _sample_beta(
     k: int,
     tau: float = 1e-4,
 ) -> None:
-    # use Gibbs sampler since we now the conditional distribution
+    # use Gibbs sampler since we know the conditional distribution
 
     mu_ij = None
     tau_ij = None
@@ -120,19 +114,63 @@ def _sample_beta(
 
 
 def _sample_theta(
-    chain: CoefficientsChain, data: Data, k: int, tau: float = 1e-4
+    chain: CoefficientsChain,
+    data: Data,
+    k: int,
+    tau: float = 1e-4,
+    prop_sd: float = 1.0,
 ) -> None:
-    sigma2 = 1.0 / (tau * (1 + np.sum(1.0 / (1 + data.LRT**2))))
-    mu = tau * np.sum((1.0 + chain.phi[k] * data.LRT) / (1.0 + data.LRT**2)) * sigma2
-    chain.theta[k] = np.random.normal(loc=mu, scale=np.sqrt(sigma2), size=1)
+    prop = chain.theta[k] + np.random.normal(scale=prop_sd)  # make a proposition
+    # compute mu_ij
+    mu_ij = _compute_mu_ij(chain, data, k)
+
+    def log_pdf(theta):
+        return (
+            -(
+                theta**2 * tau
+                - data.N * theta
+                + np.sum(
+                    (data.Y - mu_ij) ** 2 * np.exp(theta + chain.phi[k] * data.LRT)
+                )
+            )
+            / 2
+        )
+
+    top = log_pdf(prop)
+    bottom = log_pdf(chain.theta[k])
+    acc = np.exp(top - bottom)
+    if np.random.uniform() < acc:
+        chain.theta[k] = prop
 
 
 def _sample_phi(
-    chain: CoefficientsChain, data: Data, k: int, tau: float = 1e-4
+    chain: CoefficientsChain,
+    data: Data,
+    k: int,
+    tau: float = 1e-4,
+    prop_sd: float = 1.0,
 ) -> None:
-    sigma2 = 1.0 / (tau * (1 + np.sum(data.LRT**2 / (1 + data.LRT**2))))
-    mu = np.sum(data.LRT * (1 + chain.theta[k] * tau / (1 + data.LRT**2))) * sigma2
-    chain.phi[k] = np.random.normal(loc=mu, scale=np.sqrt(sigma2), size=1)
+    prop = chain.phi[k] + np.random.normal(scale=prop_sd)  # make a proposition
+    # compute mu_ij
+    mu_ij = _compute_mu_ij(chain, data, k)
+
+    def log_pdf(phi):
+        return (
+            -(
+                phi**2 * tau
+                + np.sum(
+                    -phi * data.LRT
+                    + (data.Y - mu_ij) ** 2 * np.exp(chain.theta[k] + phi * data.LRT)
+                )
+            )
+            / 2
+        )
+
+    top = log_pdf(prop)
+    bottom = log_pdf(chain.phi[k])
+    acc = np.exp(top - bottom)
+    if np.random.uniform() < acc:
+        chain.phi[k] = prop
 
 
 def _sample_gamma(
@@ -194,8 +232,8 @@ class MCMC:
             # compute the coefficients
             ## fixed effects
             _sample_beta(self._chain, data, i + 1, tau)
-            _sample_theta(self._chain, data, i + 1, tau)
-            _sample_phi(self._chain, data, i + 1, tau)
+            _sample_theta(self._chain, data, i + 1, tau, prop_sd)
+            _sample_phi(self._chain, data, i + 1, tau, prop_sd)
             ## random coefficients
             _sample_alpha(self._chain, data, i + 1, prop_sd)
             ## hyper priors

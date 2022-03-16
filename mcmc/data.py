@@ -140,9 +140,9 @@ class CoefficientsChain:
             raise ValueError("'k' must be greater than 0")
 
         # copy
-        self.alpha[k] = self.alpha[k - 1][:]
-        self.beta[k] = self.beta[k - 1][:]
+        self.alpha[k] = self.alpha[k - 1].copy()
+        self.beta[k] = self.beta[k - 1].copy()
         self.theta[k] = self.theta[k - 1]
         self.phi[k] = self.phi[k - 1]
-        self.gamma[k] = self.gamma[k - 1][:]
-        self.T[k] = self.T[k - 1][:]
+        self.gamma[k] = self.gamma[k - 1].copy()
+        self.T[k] = self.T[k - 1].copy()

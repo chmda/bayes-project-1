@@ -13,6 +13,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-psd", "--prop-sd", type=float, default=1, help="Std for random walk in M.H."
     )
+    parser.add_argument("-b", "--burnin", type=int, default=1000)
     args = parser.parse_args()
 
     if not os.path.isfile(args.datafile):
@@ -34,4 +35,28 @@ if __name__ == "__main__":
     mcmc.fit(data, args.prop_sd)
     print("Done")
     print("Summary:")
-    print(mcmc.summary(burnin=1000))
+
+    # print summary
+    summary = mcmc.summary(args.burnin)
+    table_format = "{:<10} " * (1 + 8 + 3 + 1 + 1)
+    print(
+        table_format.format(
+            "metric",
+            *[f"beta[{i + 1}]" for i in range(8)],
+            *[f"gamma[{i + 1}]" for i in range(3)],
+            "phi",
+            "theta",
+        )
+    )
+
+    for metric, coeff in summary.items():
+        betas = coeff.beta
+        gammas = coeff.gamma
+        phi = coeff.phi
+        theta = coeff.theta
+        f = lambda x: "{:.2e}".format(x)
+        print(
+            table_format.format(
+                metric, *map(f, betas), *map(f, gammas), f(phi), f(theta)
+            )
+        )
