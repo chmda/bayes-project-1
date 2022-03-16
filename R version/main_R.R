@@ -97,7 +97,7 @@ sample_beta <- function(k,X){
     
   }
   va <- 1/(tau + sum(nu_k*tau_i))
-  mu_2 <- va*(sum(nu_k*tau_i - a_i)) 
+  mu_2 <- va*(sum(nu_k*tau_i - a_i))  
   X$beta[k] <- rnorm(1,mu_2,sqrt(va))
   return (X)
 }
@@ -155,7 +155,7 @@ sample_theta <- function(X){
   }
   
   log_pdf <- function(theta){
-    -0.5*theta^2*tau - 0.5 * (theta + sum( (data$Y - mu_i)^2*exp(theta)*tau_i))
+    -0.5*theta^2*tau - 0.5 * (data$N*theta + sum( (data$Y - mu_i)^2*exp(theta)))
   }
   
   top <- log_pdf(prop)
@@ -171,16 +171,14 @@ sample_theta <- function(X){
 
 sample_phi <- function(X){
   prop <- X$phi + rnorm(1, 0, sd=prop_sd)
-  tau_i <- 1:N
   mu_i <- 1:N
   for (i in 1:N){
     L <- mu_tau(i,X)
     mu_i[i] <- L[1]
-    tau_i[i] <- L[2]
   }
   
   log_pdf <- function(phi){
-    -0.5*phi^2*tau - 0.5 * sum(phi*data$LRT +  (data$Y - mu_i)^2*exp(phi)*data$LRT*tau_i)
+    -0.5*phi^2*tau - 0.5 * sum(phi*data$LRT +  (data$Y - mu_i)^2*exp(phi*data$LRT))
   }
   
   top <- log_pdf(prop)
@@ -195,10 +193,10 @@ sample_phi <- function(X){
 }
 
 sample_gamma <- function(X){
-  var <- T0 + data$M*X$T
+  prec <- T0 + data$M*X$T
   alpha_sum <- c(sum(X$alpha[,1]),sum(X$alpha[,2]),sum(X$alpha[,3]))
-  mu <- solve(a=var,b=(T0 %*% mu0 + X$T %*% alpha_sum ))
-  X$gamma <- rmvnorm(1,mu, var)
+  mu <- solve(a=prec,b=(T0 %*% mu0 + X$T %*% alpha_sum ))
+  X$gamma <- rmvnorm(1,mu, inv(prec))
   return(X)
 }
 
@@ -226,4 +224,5 @@ MH_Gibbs <- function(n,init){
   }
   return (X)
 }
+
 
