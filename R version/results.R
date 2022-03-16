@@ -1,7 +1,10 @@
 source("R version/main_R.R")
 source("R version/main_seq.R")
 
-n <- 200
+
+library(coda)
+
+n <- 1000
 
 X <- MH_Gibbs_seq(n,init)
 
@@ -66,3 +69,6 @@ results <- function(X){
 
 res <- results(X)
 mapply(summary,res)
+
+summary(mcmc(res))
+plot(mcmc(res[-(1:700),]))

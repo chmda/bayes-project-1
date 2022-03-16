@@ -161,8 +161,9 @@ MH_Gibbs_seq <- function(n,init){
       tau_i[i] <- L[2]
     }
     
+    phi <- X[[l]]$phi
     log_pdf <- function(theta){
-      -0.5*theta^2*tau - 0.5 * (data$N*theta + sum( (data$Y - mu_i)^2*exp(theta)))
+      -0.5*theta^2*tau - 0.5 * (data$N*theta + sum( (data$Y - mu_i)^2*exp(theta + phi * data$LRT)))
     }
     
     top <- log_pdf(prop)
@@ -181,8 +182,9 @@ MH_Gibbs_seq <- function(n,init){
       mu_i[i] <- L[1]
     }
     
+    theta <- X[[l]]$theta
     log_pdf <- function(phi){
-      -0.5*phi^2*tau - 0.5 * sum(phi*data$LRT +  (data$Y - mu_i)^2*exp(phi*data$LRT))
+      -0.5*phi^2*tau - 0.5 * sum(phi*data$LRT +  (data$Y - mu_i)^2*exp(theta + phi*data$LRT))
     }
     
     top <- log_pdf(prop)
