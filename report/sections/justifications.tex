@@ -4,21 +4,21 @@
 
     \begin{itemize}
     
-        \item $\pi(\beta_k)  \sim \mathcal{N} (\frac{\sum_{i,j}c_k \tau_{ij}-a_{ij}}{\tau + \sum_{ij}c_k \tau_{ij}}, \frac{1}{\tau + \sum_{ij}c_k \tau_{ij}})$ , avec
-        \begin{itemize}
-            \item $c_k$ vérifie $\mu = c_1\beta_1 + ... + c_k\beta_k + ...$
-            \item $a_{ij} = Y_{ij} - \mu_{ij} + c_k\beta_k$
-        \end{itemize}
+        \item 
+        $\pi(\beta_k | ...)$= $ \propto \pi(\beta_k) \prod_{i,j} \pi(Y_{ij}|...)$ \\  
+        \\
+        $\sim \mathcal{N}((\sum_{i,j}{ \nu_{ij}(Y_{ij} - \delta_{ij}) \tau_{ij})}(\tau + \sum_{i,j}{ \nu_{i,j}^2 \tau_{ij}})^{-1} , (\tau + \sum_{i,j} \nu_{i,j}^2 \tau_{ij})^{-1})$
+
         
-        \item $\pi(\gamma) \sim \mathcal{N}_3 ((P+nT)^{-1}(P\mu_0 +T\sum_j \alpha_j),(P+nT))$ , avec
-        \begin{itemize}
-            \item $\gamma \sim \mathcal{N}(\mu_0,P)$ où P est la matrice de précision
-        \end{itemize}
+        \item $\pi(\gamma|...) \propto \pi(\gamma) \prod_j \pi(\alpha_j|...)$  
+        \\
+        \\
+        $\sim \mathcal{N}_3 ((T_0 + \sum_j T_j)^{-1}(T_0 \mu_0 + \sum_j T \alpha_j) , (T_0 + \sum_j T_j)^{-1})$
         
-        \item $\pi(T) \sim Wishart(n+3, (R^{-1}+ \sum(\alpha_j - \gamma)(\alpha_j - \gamma)^T)^{-1})$ , avec
-        \begin{itemize}
-            \item $T \sim Wishart(3,R)$
-        \end{itemize}
+        \item $\pi(T|...) \propto \pi(T) \prod_j \pi(\alpha_j|...)$ 
+        \\
+        \\
+        $\sim \mathcal{W}_3((R+\sum_j(\alpha_j - \gamma)(\alpha_j - \gamma)^T)^{-1} , n+3)$
         
     \end{itemize}
     
@@ -28,18 +28,10 @@
 
     \begin{itemize}
     
-        \item $\pi(\theta) \propto \exp(-\theta^2 \tau /2) \exp(-\sum_{i,j}(Y_{ij} - \mu_{ij})^2 \theta \exp(\theta)/2)$
-
-
-
-        \item $\pi(\phi) \propto \exp(-\phi^2 \tau /2) \exp(-\sum_{i,j}(Y_{ij} - \mu_{ij})^2 \phi LRT_{ij} \exp(\phi LRT_{ij})/2)$
-
-
-        \item $\pi(\alpha_j) \propto \exp(-(\alpha_j - \gamma)^t T (\alpha_j - \gamma)/2) \exp(-\sum_{i,j}((\alpha_j A_{ij})^2 -2b_{ij}(\alpha_j A_{ij})) \tau_{ij}/2)$, avec
-        \begin{itemize}
-            \item $\alpha_j = (\alpha_{1j}, \alpha_{2j}, \alpha_{3j})$
-            \item $A_{ij} = (1, LRT_{ij}, VR_{1ij})$
-            \item $b_{ij} = \mu_{ij} - \alpha_j A_{ij} - Y_{ij}$
-        \end{itemize}
+        \item $log \pi(\theta|...) = cst - \frac{\theta^2}{2}\tau - \frac{1}{2}\sum_{i,j}(-\theta + (Y_{ij}-\mu_{ij})^2 \tau_{ij})$
+        
+        \item $log \pi(\phi|...) = cst - \frac{\phi^2}{2}\tau - \frac{1}{2}\sum_{i,j}(-\phi LRT_{ij} + (Y_{ij}-\mu_{ij})^2 \tau_{ij})$
+        
+        \item $log \pi(\alpha_j |...) = cst - \frac{(\alpha_j - \gamma)^T T (\alpha_j - \gamma)}{2} - \frac{1}{2} \sum_i \frac{(\alpha_j^T X_{ij})^2 - 2\alpha_j^T X_{ij} (Y_{ij} - \delta_{ij})}{\sigma_{ij}^2}$
         
     \end{itemize}
