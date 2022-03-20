@@ -71,7 +71,9 @@ res <- results(X)
 df <- mapply(summary,res)
 
 dft <- t(round(df,6))
-write.csv(dft,"C:\\Users\\Armand\\Documents\\GitHub\\bayes-project-1\\report\\results.csv", row.names = TRUE)
+write.csv(dft,paste0(getwd()+"report\\R_results.csv"), row.names = TRUE)
+
+
 
 summary(mcmc(res))
 plot(mcmc(res[-(1:700),]))
