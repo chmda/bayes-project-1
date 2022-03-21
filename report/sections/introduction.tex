@@ -18,25 +18,25 @@
     On utilise un modèle hierarchique. Notons $Y_{ij}$ la note du l'élève $i$ dans l'école $j$.
     Dans notre modèle. $Y_{ij} \sim \mathcal{N}( \mu_{ij}, \tau_{ij})$. 
     \begin{itemize}
-        \item Le logarithme de $\tau_{ij}$ est modélisé comme suivant une fonction linéaire de la note du test LRT. On note $log (\tau_{ij}) = \theta + \phi LRT_{ij}$
+        \item Le logarithme de $\tau_{ij}$ est modélisé comme suivant une fonction linéaire de la note du test LRT. On note $\log (\tau_{ij}) = \theta + \phi LRT_{ij}$
         \item $\mu_{ij}$ est définie comme égale à 
         
         $\alpha_{1j} 
-        + \alpha_{2j}* LRT_{ij} 
-        + \alpha_{3j}* VR_{1ij} 
-        + \beta_{1}* LRT^{2}_{ij} 
-        + \beta_{2}* VR_{2ij} 
-        + \beta_{3}* Girl_{ij} 
-        + \beta_{4}* GirlSchool_{j} 
-        + \beta_{5}* BoySchool_{j} 
-        + \beta_{6}* CESchool_{j} 
-        + \beta_{7}* RCSchool_{j} 
-        + \beta_{8}* OtherSchool_{j}$
+        + \alpha_{2j}\cdot LRT_{ij} 
+        + \alpha_{3j}\cdot VR_{1ij} 
+        + \beta_{1}\cdot LRT^{2}_{ij} 
+        + \beta_{2}\cdot VR_{2ij} 
+        + \beta_{3}\cdot Girl_{ij} 
+        + \beta_{4}\cdot GirlSchool_{j} 
+        + \beta_{5}\cdot BoySchool_{j} 
+        + \beta_{6}\cdot CESchool_{j} 
+        + \beta_{7}\cdot RCSchool_{j} 
+        + \beta_{8}\cdot OtherSchool_{j}$
     \end{itemize}
     
     Les distributions à priori sont les suivantes : 
     \begin{itemize}
         \item Les variables aléatoires $\beta_k$ où $k \in [1,8]$, ainsi que $\theta$ et $\phi$ suivent des lois normales centrées et indépendantes, de précision 0.0001.
-        \item Le vecteur aléatoire $(\alpha_{kj})_k$ pour $k \in [1,3]$, suit une loi normal multivariée $\alpha_{*j} \sim \mathcal{N}( \gamma, \Sigma)$. Où $\gamma$ suit une loi normal multivariée non informative, et $T = \Sigma^{-1}$ suit une distribution de Wishart.
+        \item Le vecteur aléatoire $(\alpha_{kj})_k$ pour $k \in [1,3]$, suit une loi normal multivariée $\alpha_{\cdot j} \sim \mathcal{N}( \gamma, \Sigma)$. Où $\gamma$ suit une loi normal multivariée non informative, et $T = \Sigma^{-1}$ suit une distribution de Wishart.
     \end{itemize}
  

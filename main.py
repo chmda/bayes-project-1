@@ -1,9 +1,41 @@
 import argparse
 import os
 import sys
+from typing import Dict
 from mcmc import Data
 from mcmc.data import Coefficients
 from mcmc.mcmc import MCMC
+
+
+def export_to_latex(summary: Dict[str, Coefficients]) -> str:
+    result = "\\begin{center}\n\\begin{tabular}"
+    result += "{|" + "c|" * (1 + 8 + 3 + 1 + 1) + "}\n\\hline\n"
+    # add headers
+    result += "&".join(
+        [
+            "metric",
+            *[f"beta[{i + 1}]" for i in range(8)],
+            *[f"gamma[{i + 1}]" for i in range(3)],
+            "phi",
+            "theta",
+        ]
+    )
+    result += " \\\\\n"
+    result += "\\hline\n"
+    # print results
+    for metric, coeff in summary.items():
+        betas = coeff.beta
+        gammas = coeff.gamma
+        phi = coeff.phi
+        theta = coeff.theta
+        f = lambda x: "{:.2e}".format(x)
+        result += "&".join([metric, *map(f, betas), *map(f, gammas), f(phi), f(theta)])
+        result += " \\\\\n"
+        result += "\\hline\n"
+
+    result += "\\end{tabular}\n\\end{center}"
+    return result
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()  # TODO : description
@@ -60,3 +92,6 @@ if __name__ == "__main__":
                 metric, *map(f, betas), *map(f, gammas), f(phi), f(theta)
             )
         )
+
+    with open("report/output.tex", "w+") as f:
+        f.write(export_to_latex(summary))
