@@ -5,7 +5,7 @@ LATEX=pdflatex
 
 all:
 	$(LATEX) $(INFILE)
-	bibtex $(INFILE:.tex=)
+	bibtex $(INFILE:.tex=.aux)
 	$(LATEX) $(INFILE)
 
 clean:

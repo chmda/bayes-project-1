@@ -2,6 +2,8 @@
 
 This project is conducted as part of the Bayesian Statistics and Hierarchical Models course by [Mathieu RIBATET](http://mribatet.perso.math.cnrs.fr/teaching.html#BAYES).
 
+:information_source: **If you want to read a more understandable code, please read the R version**.
+
 ## Usage
 
 ### R
